@@ -23,6 +23,7 @@ public class ProductServiceIplm implements ProductService {
 
   private final ProductRepository productRepository;
   private final ProductTypeRepository productTypeRepository;
+  private final CloudinaryServiceImpl cloudinaryService;
 
   @Override
   public List<ProductDTO> getAll() {
@@ -67,7 +68,7 @@ public class ProductServiceIplm implements ProductService {
     List<String> images = new ArrayList<>();
 
     if (productDTO.getFiles() != null) {
-      handleFile(productDTO, images);
+      images = handleFileSaveCloud(productDTO.getFiles());
     } else {
       throw new EntityNotFoundException("Please select a photo!");
     }
@@ -80,6 +81,23 @@ public class ProductServiceIplm implements ProductService {
     productRepository.save(product);
   }
 
+  public List<String> handleFileSaveCloud(List<MultipartFile> files) {
+    List<String> result = new ArrayList<>();
+    for (MultipartFile multipartFile : files) {
+      try {
+        String url = cloudinaryService.uploadFile(multipartFile, "images");
+        if (url == null) {
+          throw new RuntimeException("Could not upload!");
+        }
+        result.add(url);
+      } catch (Exception e) {
+        e.printStackTrace();
+        return null;
+      }
+    }
+    return result;
+  }
+
   @Override
   public void update(ProductDTO productDTO, Long id) throws IOException {
     Product product = productRepository.findById(id)
@@ -88,7 +106,7 @@ public class ProductServiceIplm implements ProductService {
     List<String> images = new ArrayList<>();
 
     if (productDTO.getFiles() != null) {
-      handleFile(productDTO, images);
+      images = handleFileSaveCloud(productDTO.getFiles());
       product.setImages(images);
     }
 
@@ -129,21 +147,6 @@ public class ProductServiceIplm implements ProductService {
       list.add(productDTO);
     }
     return list;
-  }
-
-  private void handleFile(ProductDTO productDTO, List<String> images) throws IOException {
-    for (MultipartFile file : productDTO.getFiles()) {
-      String name = file.getOriginalFilename();
-      images.add(name);
-      String path = "D:/Code/Image";
-      File folder = new File(path);
-
-      if (!folder.exists()) {
-        folder.mkdirs();
-      }
-
-      file.transferTo(new File(path + "/" + name));
-    }
   }
 
   private void mapToEntity(Product product, ProductDTO productDTO) {
